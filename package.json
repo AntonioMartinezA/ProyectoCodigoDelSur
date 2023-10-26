@@ -1,0 +1,14 @@
+{
+  "name": "proyectocodigodelsur",
+  "version": "1.0.0",
+  "description": "pagina basica para entrevista tecnica",
+  "main": "app.js",
+  "scripts": {
+    "test": "delsur"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
