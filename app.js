@@ -14,14 +14,12 @@ app.use(bodyParser.urlencoded({extended: false}));
 
 
 async function homeGet(req, res){ 
-
-    const url = 'https://api.themoviedb.org/3/movie/popular?language=en-US&page=1&api_key=69eb27a6c7d6a600bdac48c1ddcf6bd0';
+//  &with_keywords=${keyword}
+    const url = `https://api.themoviedb.org/3/discover/movie?page=1&sort_by=popularity.desc&api_key=69eb27a6c7d6a600bdac48c1ddcf6bd0`;
     const options = {method: 'GET', headers: {accept: 'application/json'}};
-    fetch(url, options)
-      .then(res => res.json())
-      .then(json => console.log(json))
-      .catch(err => console.error('error:' + err));
-
+    const resMovies = await fetch(url, options)
+    const data = await resMovies.json();
+    res.json(data);
 }
 
 app.get('/', homeGet)
