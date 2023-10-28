@@ -18,7 +18,7 @@ stmt2.run();
 
 app.use(bodyParser.urlencoded({extended: false}));
 
-async function getUser(email){
+function getUser(email){
   const stmt = db.prepare(`SELECT Email email, FirstName firstName,  LastName lastName, Password password
   FROM Users
   WHERE Email = ?`);
@@ -31,7 +31,7 @@ const secretKey = '30351441';
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromUrlQueryParameter('apikey'), // Extract from 'apikey' query parameter
-  secretOrKey: '30351441',
+  secretOrKey: secretKey,
 };
 
 passport.use(new JwtStrategy(jwtOptions, (payload, done) => {
@@ -82,9 +82,9 @@ async function addPost(req, res){
 app.post('/add', addPost);
 
 
-async function checkGet(req, res){
+function checkGet(req, res){
   let email = req.query.email;
-  let row = await getUser(email);
+  let row = getUser(email);
   res.json({"email":`${row.email}`, "firstName":`${row.firstName}`,"lastName":`${row.lastName}`,"password":`${row.password}`})    
 }
 app.get('/check', checkGet);
@@ -95,30 +95,28 @@ function closeGet(req, res){
 }
 app.get('/close', closeGet);
 
-
-
-// Create a JWT token and send it as a response upon successful login
-app.post('/login', (req, res) => {
+function loginPost(req, res){
   let email = req.body.email;
-  let password = req.body.password;
+  let pass = req.body.password;
   let row = getUser(email);
-  if (row.password == password ){
+  if (row.password == pass ){
     let token = jwt.sign({ sub: email }, secretKey);
     res.json({ token });
   }
-});
+}
 
-//function getFavorite(req, res){
-//  let id = req.query.id;
-//  const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID)
-//   VALUES(?, ?)`);
-//  const info = stmt.run(email, id);
-//  console.log(info);
-//}
+// Create a JWT token and send it as a response upon successful login
+app.post('/login', loginPost);
 
 function getFavorite(req, res){
-  console.log('req');
+  let movieId = req.query.movieId;
+  let user = req.user.id
+  const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID)
+   VALUES(?, ?)`);
+  const info = stmt.run(user, movieId);
+  console.log(info);
 }
+
 
 
 app.get('/favorite', passport.authenticate('jwt', { session: false }), getFavorite);
