@@ -7,6 +7,7 @@ import bodyParser from 'body-parser';
 import passport from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 let db = new Database(':memory:');
 db.pragma('journal_mode = WAL');
@@ -14,6 +15,7 @@ const stmt = db.prepare(`CREATE TABLE Users (Email TEXT PRIMARY KEY, FirstName T
 stmt.run();
 const stmt2 = db.prepare(`CREATE TABLE Movies (Email TEXT , MovieID INTEGER,FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY(Email, MovieID))`);
 stmt2.run();
+
 
 
 app.use(bodyParser.urlencoded({extended: false}));
@@ -58,12 +60,19 @@ async function addPost(req, res){
   const email = req.body.email;
   const firstName = req.body.firstName;
   const lastName = req.body.lastName;
-  const password = req.body.password;
+  const password = `0`;
   const blacklist = 0;
-  const stmt = db.prepare(`INSERT INTO users(Email, FirstName, LastName, Password, Blacklist)
+  let stmt = db.prepare(`INSERT INTO users(Email, FirstName, LastName, Password, Blacklist)
    VALUES(?, ?, ?, ?, ?)`);
-  const info = stmt.run(email, firstName, lastName, password, blacklist);
+  let info = stmt.run(email, firstName, lastName, password, blacklist);
   console.log(info)
+  const saltRounds = 10;
+  bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+    const stmt = db.prepare(`UPDATE Users
+                              SET Password = ?
+                              WHERE Email = ?`);
+    stmt.run(hash, email);
+  });
 }
 
 
@@ -87,10 +96,12 @@ function loginPost(req, res){
                            WHERE Email = ?`);
     stmt.run(0, email);
   }
-  if (row.password == pass ){
-    let token = jwt.sign({ sub: email }, secretKey, { expiresIn: 60 * 60 });
-    res.json({ token });
-  }
+  bcrypt.compare(pass, row.password, function(err, result) {
+    if (result == true ){
+      let token = jwt.sign({ sub: email }, secretKey, { expiresIn: 60 * 60 });
+      res.json({ token });
+    }
+  });
 }
 
 // Create a JWT token and send it as a response upon successful login
