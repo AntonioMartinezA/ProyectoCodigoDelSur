@@ -13,7 +13,7 @@ let db = new Database(':memory:');
 db.pragma('journal_mode = WAL');
 const stmt = db.prepare(`CREATE TABLE Users (Email TEXT PRIMARY KEY, FirstName TEXT, LastName TEXT, Password TEXT, Blacklist INTEGER)`);
 stmt.run();
-const stmt2 = db.prepare(`CREATE TABLE Movies (Email TEXT , MovieID INTEGER,FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY(Email, MovieID))`);
+const stmt2 = db.prepare(`CREATE TABLE Movies (Email TEXT , MovieID INTEGER,addedAt TEXT,FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY(Email, MovieID))`);
 stmt2.run();
 
 
@@ -132,11 +132,13 @@ async function moviesGet(req, res){
 app.get('/movies', passport.authenticate('jwt', { session: false }), moviesGet)
 
 function getFavorite(req, res){
-  let movieId = req.query.movieId;
-  let user = req.user.id
-  const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID)
-   VALUES(?, ?)`);
-  const info = stmt.run(user, movieId);
+  const movieId = req.query.movieId;
+  const user = req.user.id;
+  const d = new Date();
+  const date = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`
+  const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID, addedAT)
+   VALUES(?, ?, ?)`);
+  const info = stmt.run(user, movieId, date);
   console.log(info);
 }
 
