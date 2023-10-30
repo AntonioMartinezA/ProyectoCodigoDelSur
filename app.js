@@ -9,13 +9,12 @@ import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
-let db = new Database(':memory:');
+let db = new Database('db/database.db');
 db.pragma('journal_mode = WAL');
-const stmt = db.prepare(`CREATE TABLE Users (Email TEXT PRIMARY KEY, FirstName TEXT, LastName TEXT, Password TEXT, Blacklist INTEGER)`);
+const stmt = db.prepare(`CREATE TABLE IF NOT EXISTS Users (Email TEXT PRIMARY KEY, FirstName TEXT, LastName TEXT, Password TEXT, Blacklist INTEGER)`);
 stmt.run();
-const stmt2 = db.prepare(`CREATE TABLE Movies (Email TEXT , MovieID INTEGER,addedAt TEXT,FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY(Email, MovieID))`);
+const stmt2 = db.prepare(`CREATE TABLE IF NOT EXISTS Movies (Email TEXT , MovieID INTEGER,addedAt TEXT,FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY(Email, MovieID))`);
 stmt2.run();
-
 
 
 app.use(bodyParser.urlencoded({extended: false}));
