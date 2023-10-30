@@ -56,11 +56,18 @@ app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
 
+function validEmail(e) {
+  const filter = /^\s*[\w\-\+_]+(\.[\w\-\+_]+)*\@[\w\-\+_]+\.[\w\-\+_]+(\.[\w\-\+_]+)*\s*$/;
+  return String(e).search(filter) != -1;
+}
+
 async function addPost(req, res){
   try{  
     const email = req.body.email;
     if(getUser(email)){
       throw "There is already an user with that email";
+    } else if(!validEmail(email)){
+      throw "That is not a valid email";
     }
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
