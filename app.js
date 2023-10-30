@@ -57,22 +57,33 @@ app.listen(port, () => {
 })
 
 async function addPost(req, res){
-  const email = req.body.email;
-  const firstName = req.body.firstName;
-  const lastName = req.body.lastName;
-  const password = `0`;
-  const blacklist = 0;
-  let stmt = db.prepare(`INSERT INTO users(Email, FirstName, LastName, Password, Blacklist)
-   VALUES(?, ?, ?, ?, ?)`);
-  let info = stmt.run(email, firstName, lastName, password, blacklist);
-  console.log(info)
-  const saltRounds = 10;
-  bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
-    const stmt = db.prepare(`UPDATE Users
-                              SET Password = ?
-                              WHERE Email = ?`);
-    stmt.run(hash, email);
-  });
+  try{  
+    const email = req.body.email;
+    if(getUser(email)){
+      throw "There is already an user with that email";
+    }
+    const firstName = req.body.firstName;
+    const lastName = req.body.lastName;
+    const password = `0`;
+    if(email==''||firstName==''||lastName==''||password==''){
+      throw "There can not be an empty field";
+    }
+    const blacklist = 0;
+    let stmt = db.prepare(`INSERT INTO users(Email, FirstName, LastName, Password, Blacklist)
+    VALUES(?, ?, ?, ?, ?)`);
+    let info = stmt.run(email, firstName, lastName, password, blacklist);
+    console.log(info)
+    const saltRounds = 10;
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+      const stmt = db.prepare(`UPDATE Users
+                                SET Password = ?
+                                WHERE Email = ?`);
+      stmt.run(hash, email);
+    });
+    res.status(201).send('successfully added');
+  } catch (err) {
+    res.status(400).send(err)
+  }
 }
 
 
@@ -81,27 +92,46 @@ app.post('/add', addPost);
 
 function checkGet(req, res){
   let email = req.query.email;
-  let row = getUser(email);
-  res.json({"email":`${row.email}`, "firstName":`${row.firstName}`,"lastName":`${row.lastName}`,"password":`${row.password}`})    
+  try{
+    let row = getUser(email);
+    if(!row){
+      throw "There is no user with that email";
+    }
+    res.json({"email":`${row.email}`, "firstName":`${row.firstName}`,"lastName":`${row.lastName}`,"password":`${row.password}`}) 
+  } catch (err) {
+    res.status(400).send(err)
+  }
+
 }
+
 app.get('/check', checkGet);
 
 function loginPost(req, res){
-  let email = req.body.email;
-  let pass = req.body.password;
-  let row = getUser(email);
-  if (row.blacklist == 1){
-    const stmt = db.prepare(`UPDATE Users
-                           SET Blacklist = ?
-                           WHERE Email = ?`);
-    stmt.run(0, email);
-  }
-  bcrypt.compare(pass, row.password, function(err, result) {
-    if (result == true ){
-      let token = jwt.sign({ sub: email }, secretKey, { expiresIn: 60 * 60 });
-      res.json({ token });
+  try{
+    let email = req.body.email;
+    let pass = req.body.password;
+    let row = getUser(email);
+    if(!row){
+      throw "There is no user with that email";
     }
-  });
+    if (row.blacklist == 1){
+      const stmt = db.prepare(`UPDATE Users
+                            SET Blacklist = ?
+                            WHERE Email = ?`);
+      stmt.run(0, email);
+    }
+    bcrypt.compare(pass, row.password, function(err, result) {
+      if (result == true ){
+        let token = jwt.sign({ sub: email }, secretKey, { expiresIn: 60 * 60 });
+        res.json({ token });
+      }
+      else{
+        res.status(400).send('Incorrect Password')
+      }
+    });
+  } catch (err) {
+    res.status(400).send(err)
+  }
 }
 
 // Create a JWT token and send it as a response upon successful login
@@ -131,15 +161,38 @@ async function moviesGet(req, res){
 
 app.get('/movies', passport.authenticate('jwt', { session: false }), moviesGet)
 
-function getFavorite(req, res){
-  const movieId = req.query.movieId;
-  const user = req.user.id;
-  const d = new Date();
-  const date = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`
-  const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID, addedAT)
-   VALUES(?, ?, ?)`);
-  const info = stmt.run(user, movieId, date);
-  console.log(info);
+async function checkError(movieId, user){
+  const stmt = db.prepare(`SELECT *
+  FROM Movies
+  WHERE Email = ? AND MovieID = ?`);
+  let result = stmt.get(user, movieId);
+  if(result){
+    throw "This user has already that movie in his favorite list";
+  }
+  let url = `https://api.themoviedb.org/3/movie/${movieId}?&api_key=69eb27a6c7d6a600bdac48c1ddcf6bd0`;
+  let options = {method: 'GET', headers: {accept: 'application/json'}};
+  let resMovies = await fetch(url, options);
+  let data = await resMovies.json();
+  if(!data.id){
+    throw "There is not a movie with that id"
+  }
+}
+
+async function getFavorite(req, res){
+  try{
+    const movieId = req.query.movieId;
+    const user = req.user.id;
+    await checkError(movieId, user);
+    const d = new Date();
+    const date = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`
+    const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID, addedAT)
+    VALUES(?, ?, ?)`);
+    const info = stmt.run(user, movieId, date);
+    console.log(info);
+    res.status(201).send('successfully added');
+  } catch (err) {
+    res.status(400).send(err)
+  }
 }
 
 app.get('/favorite', passport.authenticate('jwt', { session: false }), getFavorite);
@@ -162,7 +215,11 @@ async function getFavList(req, res){
     await new Promise(r => setTimeout(r, 200));;
   }
   data.sort(function(a, b){return b.suggestionForTodayScore - a.suggestionForTodayScore});
-  res.json(data);
+  if(data.length == 0){
+    res.status(200).send('this user has no favorite movies')
+  } else{
+    res.json(data);
+  }
 }
 
 
@@ -175,10 +232,7 @@ function getLogout(req, res){
                            WHERE Email = ?`);
   const info = stmt.run(1, user);
   console.log(info);
+  res.status(200).send('successfully logged out')
 }
 
 app.get('/logout', passport.authenticate('jwt', { session: false }),getLogout)
-
-app.get('/protected', passport.authenticate('jwt', { session: false }), (req, res) => {
-  res.json({ message: 'You have access to this protected route!' });
-});
