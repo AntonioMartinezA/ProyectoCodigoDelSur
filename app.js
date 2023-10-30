@@ -1,6 +1,4 @@
 import express from 'express';
-const app = express()
-const port = 3000
 import fetch from 'node-fetch';
 import Database from 'better-sqlite3';
 import bodyParser from 'body-parser';
@@ -8,13 +6,20 @@ import passport from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+const app = express()
+const port = 3000
 
 //Abrimos la base de datos y creamos las tablas que usamos
 let db = new Database('db/database.db');
 db.pragma('journal_mode = WAL'); //esto es una configuracion opcional pero muy recomendada en el paquete
-const stmt = db.prepare(`CREATE TABLE IF NOT EXISTS Users (Email TEXT PRIMARY KEY, FirstName TEXT, LastName TEXT, Password TEXT, Blacklist INTEGER)`);
+const stmt = db.prepare(`CREATE TABLE IF NOT EXISTS 
+                          Users (Email TEXT PRIMARY KEY, FirstName TEXT, LastName TEXT,
+                                  Password TEXT, Blacklist INTEGER)`);
 stmt.run();
-const stmt2 = db.prepare(`CREATE TABLE IF NOT EXISTS Movies (Email TEXT , MovieID INTEGER,addedAt TEXT,FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY(Email, MovieID))`);
+const stmt2 = db.prepare(`CREATE TABLE IF NOT EXISTS 
+                          Movies (Email TEXT , MovieID INTEGER,addedAt TEXT,
+                          FOREIGN KEY (Email) REFERENCES Users (EMail) ON UPDATE CASCADE ON DELETE CASCADE,
+                          PRIMARY KEY(Email, MovieID))`);
 stmt2.run();
 //como usamos better sqlite3 no necesitamos cerrar la base de datos (no es la razon principal por lo que lo usamos)
 
@@ -28,9 +33,10 @@ app.use(bodyParser.urlencoded({extended: false}));
 
 //esta funcion busca un usuario por el email y devuelve sus datos
 function getUser(email){
-  const stmt = db.prepare(`SELECT Email email, FirstName firstName,  LastName lastName, Password password, Blacklist blacklist
-  FROM Users
-  WHERE Email = ?`);
+  const stmt = db.prepare(`SELECT Email email, FirstName firstName,  LastName lastName,
+                                  Password password, Blacklist blacklist
+                           FROM Users
+                           WHERE Email = ?`);
   let result = stmt.get(email);
   return result;
 }
@@ -46,9 +52,9 @@ const jwtOptions = {
 
 //funcion que utiliza passport para verificar si la key es correcta
 passport.use(new JwtStrategy(jwtOptions, (payload, done) => {
-//la key que generamos usa el email del usuario entonces payload.sub es el email
+  //la key que generamos usa el email del usuario entonces payload.sub es el email
   let user = getUser(payload.sub);
-//mantenemos un campo para revisar si el usuairo hizo log out
+  //mantenemos un campo para revisar si el usuairo hizo log out
   if (user.blacklist == 1){
     return done(null, false);
   } else if (user) {
@@ -79,22 +85,25 @@ async function addPost(req, res){
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
     const password = `0`;
-    if(email==''||firstName==''||lastName==''||password==''){
+    if(email==''||firstName==''||lastName==''||!email||!firstName||!lastName){
       throw "There can not be an empty field";
     }
 // lo primero fue revisar que los campos sean validos, password lo agregamos como 0 pero el valor no se mantiene
     const blacklist = 0;
     let stmt = db.prepare(`INSERT INTO users(Email, FirstName, LastName, Password, Blacklist)
-    VALUES(?, ?, ?, ?, ?)`);
+                           VALUES(?, ?, ?, ?, ?)`);
     let info = stmt.run(email, firstName, lastName, password, blacklist);
     console.log(info)
 // una vez agregado el usuario en la base de datos falta updatear el password, se trata de hacerlo 
 // en el mismo comando que cuando se lee por recomendaciones de seguridad
     const saltRounds = 10;
     bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+      if(password==''||!password){
+        throw "There can not be an empty field";
+      }
       const stmt = db.prepare(`UPDATE Users
-                                SET Password = ?
-                                WHERE Email = ?`);
+                               SET Password = ?
+                               WHERE Email = ?`);
       stmt.run(hash, email);
     });
     res.status(201).send('successfully added');
@@ -135,8 +144,8 @@ function loginPost(req, res){
 // si el user hizo logout lo volvemos a habilitar
     if (user.blacklist == 1){
       const stmt = db.prepare(`UPDATE Users
-                            SET Blacklist = ?
-                            WHERE Email = ?`);
+                               SET Blacklist = ?
+                               WHERE Email = ?`);
       stmt.run(0, email);
     }
 //usamos la funcion que compara usando el hash para verificar la contrasena
@@ -192,8 +201,8 @@ app.get('/movies', passport.authenticate('jwt', { session: false }), moviesGet)
 async function checkError(movieId, user){
 // un error es si la pelicula ya la tiene en favoritos
   const stmt = db.prepare(`SELECT *
-  FROM Movies
-  WHERE Email = ? AND MovieID = ?`);
+                           FROM Movies
+                           WHERE Email = ? AND MovieID = ?`);
   let result = stmt.get(user, movieId);
   if(result){
     throw "This user has already that movie in his favorite list";
@@ -219,7 +228,7 @@ async function getFavorite(req, res){
     const today = new Date();
     const date = `${today.getDate()}/${today.getMonth()+1}/${today.getFullYear()}`
     const stmt = db.prepare(`INSERT INTO Movies(Email, MovieID, addedAT)
-    VALUES(?, ?, ?)`);
+                             VALUES(?, ?, ?)`);
     const info = stmt.run(user, movieId, date);
     console.log(info);
     res.status(201).send('successfully added');
@@ -235,8 +244,8 @@ async function getFavList(req, res){
   const user = req.user.id;
 // seleccionamos todas las peliculas favoritas del usuario
   const stmt = db.prepare(`SELECT MovieID as id
-  FROM Movies
-  WHERE Email = ?`);
+                           FROM Movies
+                           WHERE Email = ?`);
   let count = 0;
   let data = [];
 // stmt.iterate nos da un iterador con el resultado del SELECT
