@@ -1,10 +1,10 @@
 {
   "name": "proyectocodigodelsur",
   "version": "1.0.0",
-  "description": "pagina basica para entrevista tecnica",
+  "description": "api para entrevista tecnica",
   "main": "app.js",
   "scripts": {
-    "test": "delsur"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
